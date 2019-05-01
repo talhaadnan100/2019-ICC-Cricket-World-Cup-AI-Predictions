@@ -80,10 +80,37 @@ def get_scorecard_details(soup):
         soup: (BeautifulSoup) ODI match scorecard
 
     Return:
-        details: (list) Match type, players, etc.
+        details: (list) comprising of World Cup Match (boolean), Attendence (int), players' names (str) and urls(str)
     """
 
     details = []
+
+    # World cup match or not?
+    WC = 'World Cup' in soup.find('div', {"class":"cscore_info-overview"}).text
+    details.append(WC)
+
+    # Getting attendence
+    for div in soup.find_all('div', {"class": "accordion-content collapse in"}):
+        for li in div.find_all('li'):
+            attendance = None
+            if 'Attendance' in li.text:
+                attendance = int(''.join(re.findall('\d+', li.text)))
+            details.append(attendance)
+
+    # Getting players
+    for li in soup.find_all('li', {"class": "accordion-item"}):
+        try:
+            team = None
+            team = li.find('h2').text.replace(' Innings','')
+        except AttributeError:
+            continue
+        details.append(team)
+        for div in li.find_all('div', {"class":"scorecard-section batsmen"}):
+            for a in div.find_all('a'):
+                if a["href"][-4:]=='html':
+                    name = a.text.replace(" †","").replace(" (c)","")
+                    details.append(name)
+                    details.append(a['href'])
 
 
     return details
