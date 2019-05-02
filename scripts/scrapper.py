@@ -24,12 +24,25 @@ def get_webpage(url):
     except KeyError:
         # Get the webpage from the Website
         html_request = requests.get(url)
-        webpage = BeautifulSoup(html_request.text)
+        webpage = BeautifulSoup(html_request.text, features="lxml")
+        attempts = 1
 
-        # Archive for future use
-        add = pd.DataFrame([[url,webpage]],columns=['url','html'])        
-        add.set_index('url', inplace=True)
-        add.to_csv('../data/archive.csv', mode='a', header=False)
+        # Retry upto 5 times to reread the page
+        while attempts < 5 and 'Page error' in webpage.text:
+            # Take a deep breath, and try again
+            time.sleep(.5)
+            html_request = requests.get(url)
+            webpage = BeautifulSoup(html_request.text, features="lxml")
+            attempts += 1
+        
+        if 'Page error' in webpage.text:
+            print('Cannot process',url)
+            print('Keep bumping into Page error, buddy! ¯\_(ツ)_/¯') 
+        else:
+            # Archive for future use
+            add = pd.DataFrame([[url,webpage]],columns=['url','html'])        
+            add.set_index('url', inplace=True)
+            add.to_csv('../data/archive.csv', mode='a', header=False)
 
         # Be polite to the webserver
         time.sleep(.5)
@@ -90,12 +103,16 @@ def get_scorecard_details(soup):
     details.append(WC)
 
     # Getting attendence
+    attendance = None
     for div in soup.find_all('div', {"class": "accordion-content collapse in"}):
-        for li in div.find_all('li'):
-            attendance = None
+        for li in div.find_all('li'):        
             if 'Attendance' in li.text:
-                attendance = int(''.join(re.findall('\d+', li.text)))
-            details.append(attendance)
+                # Taking out match revenue detailed added to attendance with paranthesis 
+                if "(" in li.text:
+                    attendance = int(''.join(re.findall('\:\s(.*)\s', li.text)).replace(',',''))
+                else:
+                    attendance = int(''.join(re.findall('\d+', li.text)))
+    details.append(attendance)
 
     # Getting players
     for li in soup.find_all('li', {"class": "accordion-item"}):
