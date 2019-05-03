@@ -30,7 +30,7 @@ def get_webpage(url):
         # Retry upto 5 times to reread the page
         while attempts < 5 and 'Page error' in webpage.text:
             # Take a deep breath, and try again
-            time.sleep(.5)
+            time.sleep(attempts)
             html_request = requests.get(url)
             webpage = BeautifulSoup(html_request.text, features="lxml")
             attempts += 1
