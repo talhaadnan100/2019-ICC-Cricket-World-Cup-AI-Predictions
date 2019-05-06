@@ -22,6 +22,9 @@ def get_webpage(url):
         html = archive.loc[url][0]
         return BeautifulSoup(html, "html.parser")
     except KeyError:
+        # Be polite to the webserver
+        time.sleep(.5)
+
         # Get the webpage from the Website
         html_request = requests.get(url)
         webpage = BeautifulSoup(html_request.text, features="lxml")
@@ -29,25 +32,51 @@ def get_webpage(url):
 
         # Retry upto 5 times to reread the page
         while attempts < 5 and 'Page error' in webpage.text:
-            # Take a deep breath, and try again
+            # Take a deep breath, and try again. Giving more rest to the server at each attempt
             time.sleep(attempts)
             html_request = requests.get(url)
             webpage = BeautifulSoup(html_request.text, features="lxml")
             attempts += 1
         
+        # Archive scrapped webpage for future use, but exclude Page Error or 2019 match results
         if 'Page error' in webpage.text:
             print('Cannot process',url)
-            print('Keep bumping into Page error, buddy! ¯\_(ツ)_/¯') 
+            print('Keep bumping into Page error, buddy! ¯\_(ツ)_/¯')
+        elif 'match_results.html?class=2;id=2019;type=year' in url:
+            print('FYI: 2019 match results will not be archived, because updates are expected.')
+            return webpage
         else:
-            # Archive for future use
             add = pd.DataFrame([[url,webpage]],columns=['url','html'])        
             add.set_index('url', inplace=True)
             add.to_csv('../data/archive.csv', mode='a', header=False)
 
-        # Be polite to the webserver
-        time.sleep(.5)
+            return webpage
+        
 
-        return webpage
+def initiate_match_results_dataframe(start_year=1971, end_year=2019, save_to_file=False):
+    """
+    Initializes a dataframe that is extracted from the scraped match results webpages
+    between the specified start year and end year
+
+    Keywords:
+        start_year: (int) ODI matches to scrape from specified year
+        end_year: (int) ODI matches to scrape to specified year
+        save_to_file: (bool) 
+
+    Return
+        matches: (pandas.Dataframe) 
+    """
+
+    matches = pd.DataFrame(get_odi_match_results(get_webpage('http://stats.espncricinfo.com/ci/engine/records/team/match_results.html?class=2;id='+ str(start_year) +';type=year')))
+    for year in list(range(start_year+1, end_year)):
+        soup = get_webpage('http://stats.espncricinfo.com/ci/engine/records/team/match_results.html?class=2;id='+ str(year) +';type=year')
+        matches = matches.append(get_odi_match_results(soup))
+    matches = matches.reset_index(drop=True)
+
+    if save_to_file == True:
+        matches.to_csv("../data/match_results.csv", index=False)
+
+    return matches
 
 def get_odi_match_results(soup):
     """
@@ -109,7 +138,7 @@ def get_scorecard_details(soup):
             if 'Attendance' in li.text:
                 # Taking out match revenue detailed added to attendance with paranthesis 
                 if "(" in li.text:
-                    attendance = int(''.join(re.findall('\:\s(.*)\s', li.text)).replace(',',''))
+                    attendance = int(''.join(re.findall('\s(\d.*)\s\(', li.text)).replace(',','').replace(' ',''))
                 else:
                     attendance = int(''.join(re.findall('\d+', li.text)))
     details.append(attendance)
@@ -124,10 +153,13 @@ def get_scorecard_details(soup):
         details.append(team)
         for div in li.find_all('div', {"class":"scorecard-section batsmen"}):
             for a in div.find_all('a'):
-                if a["href"][-4:]=='html':
-                    name = a.text.replace(" †","").replace(" (c)","")
-                    details.append(name)
-                    details.append(a['href'])
+                try: 
+                    if a["href"][-4:]=='html':
+                        name = a.text.replace(" †","").replace(" (c)","")
+                        details.append(name)
+                        details.append(a['href'])
+                except:
+                    continue
 
 
     return details
