@@ -145,21 +145,24 @@ def get_scorecard_details(soup):
 
     # Getting players
     for li in soup.find_all('li', {"class": "accordion-item"}):
+        players = []
         try:
             team = None
             team = li.find('h2').text.replace(' Innings','')
         except AttributeError:
             continue
-        details.append(team)
+        players.append(team)
         for div in li.find_all('div', {"class":"scorecard-section batsmen"}):
             for a in div.find_all('a'):
                 try: 
                     if a["href"][-4:]=='html':
                         name = a.text.replace(" †","").replace(" (c)","")
-                        details.append(name)
-                        details.append(a['href'])
+                        players.append(name)
+                        players.append(a['href'])
                 except:
                     continue
+        while len(players) < 25: players.append(None)
+        details = details + players
 
 
     return details
