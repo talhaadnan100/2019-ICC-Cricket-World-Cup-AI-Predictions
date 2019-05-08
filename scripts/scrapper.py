@@ -14,8 +14,14 @@ def get_webpage(url):
     Return
         webpage: (BeautifulSoup) html parsed text from a webpage
     """
-    
-    archive = pd.read_csv("../data/archive.csv", index_col=0)
+
+    # Distributing archive for efficient retrieval
+    if 'player' in url:
+        archive = pd.read_csv('../data/archive/archive-players.csv', index_col=0)
+    elif 'ground' in url:
+        archive = pd.read_csv('../data/archive/archive-grounds.csv', index_col=0)
+    else:
+        archive = pd.read_csv("../data/archive/archive-matches.csv", index_col=0)
 
     try:
         # Explore archive first to avoid excessively hitting the server
@@ -48,7 +54,12 @@ def get_webpage(url):
         else:
             add = pd.DataFrame([[url,webpage]],columns=['url','html'])        
             add.set_index('url', inplace=True)
-            add.to_csv('../data/archive.csv', mode='a', header=False)
+            if 'player' in url:
+                add.to_csv('../data/archive/archive-players.csv', mode='a', header=False)
+            elif 'ground' in url:
+                add.to_csv('../data/archive/archive-grounds.csv', mode='a', header=False)
+            else:
+                add.to_csv('../data/archive/archive-matches.csv', mode='a', header=False)
 
             return webpage
         
@@ -178,7 +189,51 @@ def get_player_details(soup):
         details: (list) batting and bowling details including Date of Birth.
     """
 
-    details = []
+    DOB = None
+    style = None
+    batting = None
+    bowling = None
+    
+    for p in soup.find_all('p', {"class":"ciPlayerinformationtxt"}):
+        if p.text[:4] == 'Born':
+            # get player DOB
+            DOB = pd.to_datetime(re.search('\w{3,9}?\s\d{1,2}?,\s\d{4}?', p.text).group(0))
+        if p.text[:4] == 'Play':
+            # Get player style
+            style = p.find('span').text
+        if p.text[:4] == 'Batt':
+            # Get batting style
+            batting = p.find('span').text
+        if p.text[:4] == 'Bowl':
+            # Get bowling style
+            bowling = p.find('span').text
+    
+    bat = []
+    bowl = []
+    for table in soup.find_all('tbody'):
+        for tr in table.find_all('tr'):
+            td = tr.find_all('td')
+            row = [tr.text for tr in td]
+            if len(row) == 15:
+                bat.append(row)
+            if len(row) == 14:
+                bowl.append(row)
+                
+    bat_ave = None
+    bat_sr = None
+    bowl_ave = None
+    bowl_econ = None
+    bowl_sr = None
+    
+    bat_df = pd.DataFrame(bat, columns=['Format','Mat','Inns','NO','Runs','HS','Ave','BF', 'SR','100','50','4s', '6s','Ct','St'])
+    bowl_df = pd.DataFrame(bowl, columns=['Format','Mat','Inns','Balls','Runs','Wkts', 'BBI', 'BBM','Ave','Econ', 'SR','4w', '5w','10'])
+    bat_ave = float(bat_df[bat_df['Format']=='ODIs']['Ave'].values[0])
+    bat_sr = float(bat_df[bat_df['Format']=='ODIs']['SR'].values[0])
+    bowl_ave = float(bowl_df[bat_df['Format']=='ODIs']['Ave'].values[0])
+    bowl_econ = float(bowl_df[bat_df['Format']=='ODIs']['Econ'].values[0])
+    bowl_sr = float(bowl_df[bat_df['Format']=='ODIs']['SR'].values[0])
+    
+    details = [DOB, style, batting, bowling, bat_ave, bat_sr, bowl_ave, bowl_econ, bowl_sr]
 
 
     return details
