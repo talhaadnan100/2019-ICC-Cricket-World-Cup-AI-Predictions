@@ -191,8 +191,8 @@ def get_player_details(soup):
 
     DOB = None
     style = None
-    batting = None
-    bowling = None
+    batting_style = None
+    bowling_style = None
     
     for p in soup.find_all('p', {"class":"ciPlayerinformationtxt"}):
         if p.text[:4] == 'Born':
@@ -203,37 +203,49 @@ def get_player_details(soup):
             style = p.find('span').text
         if p.text[:4] == 'Batt':
             # Get batting style
-            batting = p.find('span').text
+            batting_style = p.find('span').text
         if p.text[:4] == 'Bowl':
             # Get bowling style
-            bowling = p.find('span').text
+            bowling_style = p.find('span').text
     
     bat = []
     bowl = []
-    for table in soup.find_all('tbody'):
-        for tr in table.find_all('tr'):
-            td = tr.find_all('td')
-            row = [tr.text for tr in td]
-            if len(row) == 15:
+    for obs, table in enumerate(soup.find_all('table', {"class":"engineTable"})):
+        if obs == 0: # Batting averages
+            for tr in table.find_all('tr', {"class":"head"}):
+                th = tr.find_all('th')
+                head = [tr.text for tr in th]
+            for tr in table.find_all('tr'):
+                td = tr.find_all('td')
+                row = [tr.text for tr in td]
                 bat.append(row)
-            if len(row) == 14:
+            # Consolidate HTML table to Pandas Dataframe
+            batting = pd.DataFrame(bat, columns=head)
+            batting.set_index("",drop=True,inplace=True)
+            batting.dropna(inplace=True)
+            batting.replace(to_replace='-', value=0, inplace=True)
+
+        elif obs == 1: # Bowling averages
+            for tr in table.find_all('tr', {"class":"head"}):
+                th = tr.find_all('th')
+                head = [tr.text for tr in th]
+            for tr in table.find_all('tr'):
+                td = tr.find_all('td')
+                row = [tr.text for tr in td]
                 bowl.append(row)
+            # Consolidate HTML table to Pandas Dataframe
+            bowling = pd.DataFrame(bowl, columns=head)
+            bowling.set_index("",drop=True,inplace=True)
+            bowling.dropna(inplace=True)
+            bowling.replace(to_replace='-', value=0, inplace=True)
                 
-    bat_ave = None
-    bat_sr = None
-    bowl_ave = None
-    bowl_econ = None
-    bowl_sr = None
+    bat_ave = float(batting.loc['ODIs','Ave']) 
+    bat_sr = float(batting.loc['ODIs','SR'])
+    bowl_ave = float(bowling.loc['ODIs','Ave'])
+    bowl_econ = float(bowling.loc['ODIs','Econ'])
+    bowl_sr = float(bowling.loc['ODIs','SR'])
     
-    bat_df = pd.DataFrame(bat, columns=['Format','Mat','Inns','NO','Runs','HS','Ave','BF', 'SR','100','50','4s', '6s','Ct','St'])
-    bowl_df = pd.DataFrame(bowl, columns=['Format','Mat','Inns','Balls','Runs','Wkts', 'BBI', 'BBM','Ave','Econ', 'SR','4w', '5w','10'])
-    bat_ave = float(bat_df[bat_df['Format']=='ODIs']['Ave'].values[0])
-    bat_sr = float(bat_df[bat_df['Format']=='ODIs']['SR'].values[0])
-    bowl_ave = float(bowl_df[bat_df['Format']=='ODIs']['Ave'].values[0])
-    bowl_econ = float(bowl_df[bat_df['Format']=='ODIs']['Econ'].values[0])
-    bowl_sr = float(bowl_df[bat_df['Format']=='ODIs']['SR'].values[0])
-    
-    details = [DOB, style, batting, bowling, bat_ave, bat_sr, bowl_ave, bowl_econ, bowl_sr]
+    details = [DOB, style, batting_style, bowling_style, bat_ave, bat_sr, bowl_ave, bowl_econ, bowl_sr]
 
 
     return details
