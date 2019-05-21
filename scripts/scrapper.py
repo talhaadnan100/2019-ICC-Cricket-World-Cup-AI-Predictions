@@ -1,6 +1,7 @@
 import pandas as pd
 import re
 import time
+import datetime
 import requests
 from bs4 import BeautifulSoup
 
@@ -166,7 +167,7 @@ def get_scorecard_details(soup):
         for div in li.find_all('div', {"class":"scorecard-section batsmen"}):
             for a in div.find_all('a'):
                 try: 
-                    if a["href"][-4:]=='html':
+                    if ('player' in a["href"]) & (a["href"][-4:]=='html'):
                         name = a.text.replace(" †","").replace(" (c)","")
                         players.append(name)
                         players.append(a['href'])
@@ -178,26 +179,32 @@ def get_scorecard_details(soup):
 
     return details
 
-def get_player_details(soup):
+def get_player_details(soup, match_date):
     """
-    Given a BeautifulSoup object of an ODI cricket player, get the relevant batting and bowling details including Date of Birth.
+    Given a BeautifulSoup object of an ODI cricket player, get the relevant batting and bowling details including age on date of the match in days.
 
     Keyword:
         soup: (BeautifulSoup) ODI cricket player
+        match_date: (str) ODI cricket match date
 
     Return:
         details: (list) batting and bowling details including Date of Birth.
     """
 
-    DOB = None
+    # Standardize match_date to datetime for difference calculation later
+    if len(match_date) == 19: md = datetime.datetime.strptime(match_date, "%Y-%m-%d %H:%M:%S")
+    if len(match_date) == 10: md = datetime.datetime.strptime(match_date, "%Y-%m-%d")
+
+    age = None
     style = None
     batting_style = None
     bowling_style = None
     
     for p in soup.find_all('p', {"class":"ciPlayerinformationtxt"}):
         if p.text[:4] == 'Born':
-            # get player DOB
-            DOB = pd.to_datetime(re.search('\w{3,9}?\s\d{1,2}?,\s\d{4}?', p.text).group(0))
+            # get player age
+            dob = pd.to_datetime(re.search('\w{3,9}?\s\d{1,2}?,\s\d{4}?', p.text).group(0))
+            age = (md - dob).days
         if p.text[:4] == 'Play':
             # Get player style
             style = p.find('span').text
@@ -245,7 +252,7 @@ def get_player_details(soup):
     bowl_econ = float(bowling.loc['ODIs','Econ'])
     bowl_sr = float(bowling.loc['ODIs','SR'])
     
-    details = [DOB, style, batting_style, bowling_style, bat_ave, bat_sr, bowl_ave, bowl_econ, bowl_sr]
+    details = [age, style, batting_style, bowling_style, bat_ave, bat_sr, bowl_ave, bowl_econ, bowl_sr]
 
 
     return details
