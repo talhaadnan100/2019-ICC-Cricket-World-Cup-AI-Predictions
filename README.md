@@ -25,6 +25,12 @@ To recreate the data files, run the script with your desired start and end years
 
 Usage: `python scripts/data.py 1971 2019`
 
+#### Sneak Peak at the data
+
+![](img/ODI-teams.png)
+
+![](img/ODI-players.png)
+
 ### Predictive Modeling
 
 A baseline [scikit learn](https://scikit-learn.org/stable/index.html) Logistic Regression and/or Decision Tree Classifier will serve as a starting point. Then, more advanced machine learning models will be introduced.
