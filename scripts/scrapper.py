@@ -1,3 +1,10 @@
+"""
+This script uses BeautifulSoup to scrape 1,000s of webpages from ESPN CricInfo
+to aggregate details about One-Day International (ODI) matches
+
+Created by: Talha Siddiqui
+"""
+
 import pandas as pd
 import re
 import time
@@ -38,7 +45,7 @@ def get_webpage(url):
         attempts = 1
 
         # Retry upto 5 times to reread the page
-        while attempts < 5 and 'Page error' in webpage.text:
+        while attempts < 5 and ('Page error' in webpage.text or 'Bad Gateway' in webpage.text):
             # Take a deep breath, and try again. Giving more rest to the server at each attempt
             time.sleep(attempts)
             html_request = requests.get(url)
@@ -46,7 +53,7 @@ def get_webpage(url):
             attempts += 1
         
         # Archive scrapped webpage for future use, but exclude Page Error or 2019 match results
-        if 'Page error' in webpage.text:
+        if 'Page error' in webpage.text or 'Bad Gateway' in webpage.text:
             print('Cannot process',url)
             print('Keep bumping into Page error, buddy! ¯\_(ツ)_/¯')
         elif 'match_results.html?class=2;id=2019;type=year' in url:
@@ -64,31 +71,6 @@ def get_webpage(url):
 
             return webpage
         
-
-def initiate_match_results_dataframe(start_year=1971, end_year=2019, save_to_file=False):
-    """
-    Initializes a dataframe that is extracted from the scraped match results webpages
-    between the specified start year and end year
-
-    Keywords:
-        start_year: (int) ODI matches to scrape from specified year
-        end_year: (int) ODI matches to scrape to specified year
-        save_to_file: (bool) 
-
-    Return
-        matches: (pandas.Dataframe) 
-    """
-
-    matches = pd.DataFrame(get_odi_match_results(get_webpage('http://stats.espncricinfo.com/ci/engine/records/team/match_results.html?class=2;id='+ str(start_year) +';type=year')))
-    for year in list(range(start_year+1, end_year)):
-        soup = get_webpage('http://stats.espncricinfo.com/ci/engine/records/team/match_results.html?class=2;id='+ str(year) +';type=year')
-        matches = matches.append(get_odi_match_results(soup))
-    matches = matches.reset_index(drop=True)
-
-    if save_to_file == True:
-        matches.to_csv("../data/match_results.csv", index=False)
-
-    return matches
 
 def get_odi_match_results(soup):
     """
@@ -253,22 +235,6 @@ def get_player_details(soup, match_date):
     bowl_sr = float(bowling.loc['ODIs','SR'])
     
     details = [age, style, batting_style, bowling_style, bat_ave, bat_sr, bowl_ave, bowl_econ, bowl_sr]
-
-
-    return details
-
-def get_ground_details(soup):
-    """
-    Given a BeautifulSoup object of a cricket ground, get the relevant city, country, year established, and pitch type.
-
-    Keyword:
-        soup: (BeautifulSoup) cricket ground
-
-    Return:
-        details: (list) city, country, year established, and pitch type.
-    """
-
-    details = []
 
 
     return details
