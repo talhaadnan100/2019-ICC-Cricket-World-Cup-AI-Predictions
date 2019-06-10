@@ -115,11 +115,11 @@ def complete_scraped_dataframe(matches_scorecard, save_to_file=False):
                     # Getting the figures from the player's webpage
                     try:
                         html = archive.loc[link][0]
-                        details = get_player_details(BeautifulSoup(html, "html.parser"), match_date)
+                        details = get_player_details(BeautifulSoup(html, "html.parser"), str(match_date))
                         player_details.append(details)
                     except KeyError:
                         html = get_webpage(link)
-                        details = get_player_details(html, match_date)
+                        details = get_player_details(html, str(match_date))
                         player_details.append(details)
                     except:
                         player_details.append([None,None,None,None,None,None,None,None,None])                        
@@ -138,6 +138,43 @@ def complete_scraped_dataframe(matches_scorecard, save_to_file=False):
             else:
                 print('Dataframe and player details mismatch for:', column)
 
+    ## Handle Missing Values    
+    # Bowling Average: Lower the better, so missing values ought to be the worst a.k.a highest
+    for c in [c for c in matches_scorecard.columns if c[-8:]=="bowl_ave"]:
+        highest = matches_scorecard[c].max()
+        matches_scorecard[c].replace(0,highest, inplace=True)
+        matches_scorecard[c].fillna(highest, inplace=True)
+
+    # Bowling Economy: Lower the better, so missing values ought to be the worst a.k.a highest
+    for c in [c for c in matches_scorecard.columns if c[-9:]=="bowl_econ"]:
+        highest = matches_scorecard[c].max()
+        matches_scorecard[c].replace(0,highest, inplace=True)
+        matches_scorecard[c].fillna(highest, inplace=True)
+
+    # Bowling Strike Rate: Lower the better, so missing values ought to be the worst a.k.a highest
+    for c in [c for c in matches_scorecard.columns if c[-7:]=="bowl_sr"]:
+        highest = matches_scorecard[c].max()
+        matches_scorecard[c].replace(0,highest, inplace=True)
+        matches_scorecard[c].fillna(highest, inplace=True)
+        
+    # Batting Average: Higher the better, so missing values ought to be the worst a.k.a lowest after 0
+    for c in [c for c in matches_scorecard.columns if c[-7:]=="bat_ave"]:
+        lowest = matches_scorecard[matches_scorecard[c]>0][c].min()
+        matches_scorecard[c].replace(0,lowest, inplace=True)
+        matches_scorecard[c].fillna(lowest, inplace=True)
+
+    # Batting Strike Rate: Higher the better, so missing values ought to be the worst a.k.a lowest after 0
+    for c in [c for c in matches_scorecard.columns if c[-6:]=="bat_sr"]:
+        lowest = matches_scorecard[matches_scorecard[c]>0][c].min()
+        matches_scorecard[c].replace(0,lowest, inplace=True)
+        matches_scorecard[c].fillna(lowest, inplace=True)
+        
+    # Age on day of match: Average seems to be the reasonable choice
+    for c in [c for c in matches_scorecard.columns if c[-3:]=="age"]:
+        avg = matches_scorecard[c].mean()
+        matches_scorecard[c].replace(0,avg, inplace=True)
+        matches_scorecard[c].fillna(avg, inplace=True)
+    
     if save_to_file == True:
         matches_scorecard.to_csv("../data/matches_scorecard_player_details.csv", index=False)
     
