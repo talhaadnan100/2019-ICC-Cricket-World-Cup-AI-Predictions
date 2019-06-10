@@ -3,8 +3,13 @@ This script uses the scraping functions from scrapper.py to aggregate
 One-Day International (ODI) matche details from ESPN CricInfo.
 
 Created by: Talha Siddiqui
+
+Dependencies: argparse, pandas and bs4
+
+Usage: python scripts/data.py 1971 2019
 """
 
+import argparse
 import pandas as pd
 from bs4 import BeautifulSoup
 
@@ -21,7 +26,7 @@ def initiate_match_results_dataframe(start_year=1971, end_year=2019, save_to_fil
         save_to_file: (bool) Keeping a record of generated DataFrame as a CSV
 
     Return
-        matches: (pandas.Dataframe) 
+        matches: (pandas.Dataframe) High-level summary of ODI matches include teams, ground, winner and margin
     """
 
     matches = pd.DataFrame(get_odi_match_results(get_webpage('http://stats.espncricinfo.com/ci/engine/records/team/match_results.html?class=2;id='+ str(start_year) +';type=year')))
@@ -180,3 +185,54 @@ def complete_scraped_dataframe(matches_scorecard, save_to_file=False):
     
     return matches_scorecard
 
+def player_details_dataframe(data, save_to_file = True):
+    """
+    Using the complete aggregated data for all ODIs, this script compiles each player's information
+    who played on behalf of a certain team.
+
+    Keywords:
+        data (pandas.Dataframe) Complete table of player details for all played ODIs
+        save_to_file: (bool) Keeping a record of generated DataFrame as a CSV
+
+    Return
+        matches_scorecard: (pandas.Dataframe) Compiled table of each ODI teams' players with their attributes and stats
+    """
+    complete = []
+    for team in range(1,3):
+        for player in range(1,13):
+            column = 'team_' + str(team) + '_player_' + str(player)
+            # Loop through the data in reverse order to get the most recent players first
+            for index, row in data[::-1].iterrows():
+                player_details = []
+                player_details.append(row['team_' + str(team)])
+                for detail in ['_name', '_url', '_age', '_style', '_batting_style', '_bowling_style', '_bat_ave', '_bat_sr', '_bowl_ave', '_bowl_econ', '_bowl_sr']:
+                    player_details.append(row[column+detail])            
+                complete.append(player_details)
+    player_details_dataframe = pd.DataFrame(complete, columns=['team', 'name', 'url','avg_age','style', 'batting_style', 'bowling_style', 'bat_ave', 'bat_sr', 'bowl_ave', 'bowl_econ', 'bowl_sr']).sort_values('team')
+    player_details_dataframe = player_details_dataframe.groupby(['team', 'name','url', 'style', 'batting_style', 'bowling_style'], sort=False).mean().reset_index()
+    
+    if save_to_file == True:
+        player_details_dataframe.to_csv("../data/complete_player_details.csv", index=False)
+
+    return player_details_dataframe
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('start_year')
+    parser.add_argument('end_year')
+    args = parser.parse_args()
+
+    # Initial set of ODI matches played in the desired years
+    matches = initiate_match_results_dataframe(start_year=args.start_year, end_year=args.end_year, save_to_file=True)
+
+    # For the ODI scraped above, extending details with player names and URLs
+    matches_scorecard = extent_scorecard_dataframe(matches, save_to_file=True)
+
+    # Aggregating each player's information for each ODI match
+    matches_scorecard_player_details = complete_scraped_dataframe(matches_scorecard, save_to_file=True)
+
+    # Compiling a record of each teams' players
+    player_details_dataframe(matches_scorecard_player_details, save_to_file=True)
+
+if __name__ == "__main__":
+    main()
