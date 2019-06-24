@@ -27,13 +27,19 @@ Usage: `python scripts/data.py 1971 2019`
 
 #### Sneak Peak at the data
 
-![](img/ODI-teams.png)
+The following bar charts give a sense of the _amount_ of data at hand.
 
-![](img/ODI-players.png)
+![](img/ODI-teams-players.png)
+
+Narrowing in on the top 10 cricketing nations, a look at how well they perform with the bat and the ball.
+
+![](img/ODI-bat-bowl-avg-sr.png)
+
+More to come soon!
 
 ### Predictive Modeling
 
-A baseline [scikit learn](https://scikit-learn.org/stable/index.html) Logistic Regression and/or Decision Tree Classifier will serve as a starting point. Then, more advanced machine learning models will be introduced.
+Several [scikit learn](https://scikit-learn.org/stable/index.html) classifiers, including Random Forest, Support Vector Machines and Feed Forward Neural Network, have been used to predict using all the players' batting and bowling statistics. See the perditions [here](notebooks/ML_predictions.ipynb)
 
 ### Dependencies
 
